@@ -1,0 +1,60 @@
+# Solarized Dark for catmd.
+#
+#   catmd --theme examples/themes/solarized-dark.toml README.md
+#
+# Colors are written once as hex; catmd downgrades them to the nearest
+# 256-color index or ANSI color when the terminal cannot display them.
+# Every role not listed here keeps catmd's built-in style.
+#
+# Role entries come first: in TOML, the `[palette]` header at the bottom
+# applies to every key after it.
+
+heading_marker  = "base01"
+heading1        = { fg = "orange", modifiers = ["bold", "underline"] }
+heading2        = { fg = "yellow", modifiers = ["bold"] }
+heading3        = { fg = "violet", modifiers = ["bold"] }
+heading4        = { fg = "blue", modifiers = ["bold"] }
+heading5        = { fg = "cyan", modifiers = ["bold"] }
+heading6        = { fg = "green", modifiers = ["bold"] }
+strong          = { modifiers = ["bold"] }
+emph            = { modifiers = ["italic"] }
+strikethrough   = { fg = "base01", modifiers = ["strikethrough"] }
+code            = "cyan"
+code_block      = "base0"          # plain code text; the syntax_* roles color the tokens
+syntax_keyword  = "green"
+syntax_string   = "cyan"
+syntax_comment  = { fg = "base01", modifiers = ["italic"] }
+syntax_constant = "magenta"
+syntax_type     = "yellow"
+syntax_function = "blue"
+syntax_tag      = "blue"
+link_text       = { fg = "blue", modifiers = ["underline"] }
+link_url        = "base01"
+image           = "magenta"
+quote_gutter    = "base01"
+alert_note      = { fg = "blue", modifiers = ["bold"] }
+alert_tip       = { fg = "green", modifiers = ["bold"] }
+alert_important = { fg = "violet", modifiers = ["bold"] }
+alert_warning   = { fg = "yellow", modifiers = ["bold"] }
+alert_caution   = { fg = "red", modifiers = ["bold"] }
+table_header    = { fg = "base1", modifiers = ["bold"] }
+table_border    = "base01"
+rule            = "base01"
+html            = "base01"
+footnote_marker = "cyan"
+bullet          = "yellow"
+list_number     = "bright_black"   # an ANSI name: never converted, renders the same everywhere
+task_checkbox   = 37               # a 256-color index (xterm teal)
+
+[palette]
+base01  = "#586e75"
+base0   = "#839496"
+base1   = "#93a1a1"
+yellow  = "#b58900"   # shadows the ANSI name "yellow" for this file
+orange  = "#cb4b16"
+red     = "#dc322f"
+magenta = "#d33682"
+violet  = "#6c71c4"
+blue    = "#268bd2"
+cyan    = "#2aa198"
+green   = "#859900"

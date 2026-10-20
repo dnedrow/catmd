@@ -1,0 +1,35 @@
+[package]
+name = "catmd"
+version = "0.1.1"
+edition = "2024"
+authors = ["David Nedrow"]
+description = "cat for Markdown: render Markdown as styled text in the terminal"
+repository = "https://github.com/dnedrow/catmd"
+homepage = "https://github.com/dnedrow/catmd"
+
+[package.metadata.wix]
+upgrade-guid = "5A8D62BA-7BEB-42B7-BBD0-0C97C71EA017"
+path-guid = "23CC7EA8-D0C2-4D42-B3AD-FA2DF4148A7C"
+license = false
+eula = false
+
+[dependencies]
+comrak = { version = "0.56", default-features = false }
+clap = { version = "4.6", features = ["derive"] }
+terminal_size = "0.4"
+anstyle = "1.0"
+anstyle-query = "1.1"
+unicode-width = "0.2"
+shell-words = "1.1"
+toml = { version = "1.1", default-features = false, features = ["std", "parse", "serde"] }
+anstyle-lossy = "1.1"
+two-face = { version = "0.5", default-features = false, features = ["syntect-fancy"] }
+
+[dev-dependencies]
+assert_cmd = "2.2"
+predicates = "3.1"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"

@@ -1,0 +1,451 @@
+.TH CATMD 1 "October 20, 2026" "catmd 0.1.1" "User Commands"
+.SH NAME
+catmd \- render Markdown as styled text in the terminal
+.SH SYNOPSIS
+.B catmd
+.RI [ OPTIONS ]
+.RI [ FILE " ...]"
+.SH DESCRIPTION
+.B catmd
+reads Markdown files or standard input and writes a terminal rendering.
+It supports CommonMark and GitHub extensions including tables, strikethrough,
+task lists, autolinks, footnotes, and alerts.
+YAML front matter is hidden; HTML is shown literally.
+Links are shown as text plus URL and images as text placeholders.
+.PP
+Each
+.I FILE
+is rendered in argument order as an independent document.
+Nonempty renderings are separated by a blank line.
+With no files, or with a file argument of
+.BR \- ,
+standard input is read.
+Input is decoded as UTF-8, replacing invalid byte sequences.
+Unreadable inputs are reported on standard error and skipped; remaining
+inputs are still rendered.
+Use
+.B \-\-
+before a filename beginning with a hyphen.
+.PP
+Paragraphs wrap at word boundaries; long words are not split.
+Code blocks are never wrapped.
+A fenced code block whose info string names a language
+.RB ( rust ,
+.BR toml ,
+.BR ts ,
+.BR swift ,
+.BR sh ,
+and about two hundred more, matched case-insensitively by grammar name or
+file extension) is syntax-highlighted through the
+.B syntax_*
+theme roles; the language is the first word of the info string, cut at a
+comma.
+Blocks without a recognized language, indented code blocks, and blocks
+marked
+.BR text ,
+.BR plaintext ,
+.BR plain ,
+.BR txt ,
+or
+.B nohighlight
+render in the plain
+.B code_block
+style.
+Highlighting never changes the text of a block.
+Wide tables may overflow the terminal.
+Styling uses foreground colors and text attributes, not background colors.
+When styling is disabled, output contains no escape sequences.
+.SS Paging
+Output is sent through a pager only when standard output is a terminal,
+paging is enabled, the terminal height is known, and the rendered output
+occupies more rows than that height.
+Lines wider than the effective width count as multiple rows.
+Piped or redirected output is never paged.
+.PP
+The pager is selected from
+.BR CATMD_PAGER ,
+then
+.BR PAGER ,
+then
+.BR less .
+Whitespace-only values are ignored.
+The command is split into a program and arguments with shell-style quoting,
+but no shell is run: pipelines, variable expansion, and redirection are
+not interpreted.
+A program of
+.B cat
+disables paging; an invalid command-line quoting syntax also disables paging.
+.PP
+Colors are resolved against the original terminal before the pager starts.
+If the pager cannot be started, a diagnostic is written to standard error
+and output is written directly instead.
+.B catmd
+waits for the pager and does not use the pager's exit status as its own.
+.SH OPTIONS
+.TP
+.BI \-\-color " WHEN"
+Select
+.BR auto ,
+.BR always ,
+or
+.BR never .
+The default is
+.BR auto :
+style output only on a terminal whose
+.B TERM
+is not exactly
+.BR dumb ,
+subject to the environment overrides below.
+.B always
+forces styling even into a pipe;
+.B never
+disables it.
+An explicit choice of
+.B always
+or
+.B never
+overrides the color environment conventions.
+.TP
+.BI \-\-color\-depth " DEPTH"
+Select
+.BR auto ,
+.BR 16 ,
+.BR 256 ,
+or
+.BR truecolor .
+The default is
+.BR auto ,
+detected from
+.B COLORTERM
+and
+.BR TERM .
+This controls color depth, not whether styling is enabled.
+Theme colors are downgraded to the nearest representable color as needed;
+ANSI color names remain unchanged.
+The built-in theme uses only the 16 ANSI colors.
+.TP
+.BI \-\-width " N"
+Set rendering width in columns to a positive integer.
+The default is the standard output terminal's width, then a positive
+.BR COLUMNS ,
+then 80.
+Every effective width below 20 is raised to 20.
+Zero and invalid values are usage errors.
+.TP
+.BI \-\-height " N"
+Set the terminal height used for paging decisions to a positive integer.
+The default is the standard output terminal's height, then a positive
+.BR LINES ,
+otherwise unknown (no paging).
+This option does not enable paging into pipes.
+Zero and invalid values are usage errors.
+.TP
+.BI \-\-theme " THEME"
+Select a theme file path or name; see
+.BR FILES
+and
+.BR THEMES .
+A nonempty value takes precedence over
+.BR CATMD_THEME ;
+otherwise that variable or the built-in theme is used.
+Surrounding whitespace is trimmed and empty values are ignored.
+.TP
+.B \-\-ascii
+Use ASCII characters for bullets, quote gutters, rules, and table borders,
+regardless of locale.
+.TP
+.B \-\-no\-pager
+Never start a pager.
+.TP
+.BR \-h ", " \-\-help
+Print help and exit.
+.TP
+.BR \-V ", " \-\-version
+Print the version and exit.
+.SH ENVIRONMENT
+.TP
+.B NO_COLOR
+A nonempty value disables styling in
+.B auto
+mode, taking precedence over
+.B CLICOLOR_FORCE
+and
+.BR CLICOLOR .
+An empty value is ignored.
+.TP
+.B CLICOLOR_FORCE
+If
+.B NO_COLOR
+has not disabled styling, a nonempty value other than
+.B 0
+forces styling in
+.B auto
+mode, including into a pipe and when
+.BR CLICOLOR=0 .
+.TP
+.B CLICOLOR
+If neither of the preceding overrides applies, the exact value
+.B 0
+disables styling in
+.B auto
+mode.
+Other values, including empty, leave terminal detection in effect.
+.TP
+.BR COLORTERM ", " TERM
+For automatic color depth, surrounding whitespace is ignored and comparisons
+are case-insensitive:
+.B COLORTERM=truecolor
+or
+.BR 24bit ,
+or a
+.B TERM
+containing
+.BR direct ,
+selects 24-bit RGB.
+Otherwise a
+.B TERM
+containing
+.B 256color
+selects 256 colors; all other values select 16.
+This detection also applies when color is forced into a pipe.
+Separately, the exact
+.B TERM
+value
+.B dumb
+disables ordinary automatic terminal styling.
+.TP
+.BR COLUMNS ", " LINES
+Fallback width and height when the corresponding option is absent and
+standard output's terminal size is unavailable.
+Values are trimmed and must be positive integers; invalid or empty values
+are ignored.
+.TP
+.BR LC_ALL ", " LC_CTYPE ", " LANG
+The first nonempty value, in that order, determines the default glyph set.
+A value containing
+.B utf-8
+or
+.B utf8
+(case-insensitive) selects Unicode; other nonempty values select ASCII.
+If all are unset or empty, Unicode is used.
+.B \-\-ascii
+overrides this selection.
+.TP
+.B CATMD_THEME
+Default theme path or name when no nonempty
+.B \-\-theme
+value is supplied.
+Whitespace-only values are ignored.
+.TP
+.BR XDG_CONFIG_HOME ", " HOME
+Base directory for named themes; see
+.BR FILES .
+Surrounding whitespace is trimmed and empty values are ignored.
+.TP
+.BR CATMD_PAGER ", " PAGER
+Pager command selection; see
+.BR Paging .
+.B CATMD_PAGER
+takes precedence over
+.BR PAGER .
+.TP
+.B LESS
+Passed to the pager unchanged when nonempty.
+When unset or empty,
+.B LESS=FRX
+is supplied to preserve colors, quit if output fits one screen, and leave
+output visible when quitting
+.BR less .
+.SH FILES
+.TP
+.I $XDG_CONFIG_HOME/catmd/themes/NAME.toml
+Named theme location when
+.B XDG_CONFIG_HOME
+is nonempty after trimming.
+.TP
+.I $HOME/.config/catmd/themes/NAME.toml
+Fallback named theme location.
+If both configuration variables are unavailable or empty, the literal relative
+path
+.I ~/.config/catmd/themes/NAME.toml
+is used; the tilde is not expanded by
+.BR catmd .
+.PP
+A theme value containing a slash or ending in
+.B .toml
+is a file path, not a theme name.
+On Windows a backslash also selects a path.
+Other values resolve as
+.I NAME.toml
+in the themes directory.
+For example,
+.B dark
+is a name and
+.B dark.toml
+is a path relative to the current directory.
+Shell expansion can be used for a home-directory path, for example
+.BR "\-\-theme ~/my-theme.toml" .
+.SH THEMES
+A theme is a TOML document whose top-level keys are rendering roles, plus
+an optional
+.B [palette]
+table of named colors.
+Omitted roles retain their built-in styles.
+Each supplied role replaces its style entirely:
+.B "strong = \(dqred\(dq"
+makes strong text red without retaining bold.
+.PP
+A role value is a bare color or a table with optional
+.B fg
+and
+.B modifiers
+keys.
+Supported modifiers are
+.BR bold ,
+.BR dim ,
+.BR italic ,
+.BR underline ,
+and
+.BR strikethrough .
+A modifiers-only table is valid.
+.PP
+Colors are one of
+.BR black ,
+.BR red ,
+.BR green ,
+.BR yellow ,
+.BR blue ,
+.BR magenta ,
+.BR cyan ,
+.BR white ,
+their
+.B bright_
+variants, an integer from 0 to 255, a quoted six-digit
+.B #rrggbb
+hex value, or a palette name.
+Palette names are checked before ANSI names, allowing a palette to redefine
+.BR red ,
+for example.
+Palette entries accept ANSI names, indices, and hex values, but cannot
+reference other palette entries.
+.PP
+Supported roles:
+.RS
+.nf
+heading_marker, heading1, heading2, heading3,
+heading4, heading5, heading6, strong, emph,
+strikethrough, code, code_block, link_text,
+link_url, image, quote_gutter, alert_note,
+alert_tip, alert_important, alert_warning,
+alert_caution, table_header, table_border, rule,
+html, footnote_marker, bullet, list_number,
+task_checkbox, syntax_keyword, syntax_string,
+syntax_comment, syntax_constant, syntax_type,
+syntax_function, syntax_tag
+.fi
+.RE
+.PP
+The
+.B syntax_*
+roles style the tokens of highlighted code blocks; tokens no role claims,
+and every line of an unhighlighted block, use
+.BR code_block .
+.PP
+Example theme:
+.RS
+.nf
+code = "yellow"
+strong = { fg = "red", modifiers = ["bold"] }
+heading1 = { fg = "accent", modifiers = ["bold"] }
+link_url = { modifiers = ["dim"] }
+
+[palette]
+accent = "#00aaff"
+.fi
+.RE
+.PP
+Keep
+.B [palette]
+after role assignments: a TOML table header applies to subsequent keys.
+Themes change foreground colors and attributes, not glyphs or backgrounds,
+and do not inherit from other files.
+Italic and strikethrough rendering depend on terminal support.
+.PP
+Unreadable files, invalid TOML, unknown roles, keys, modifiers, or colors,
+and invalid value shapes produce a diagnostic naming the source and problem,
+then exit with status 2 before any standard output.
+Selected themes are still loaded and validated when styling is off,
+but their styles have no visible effect.
+.SH EXIT STATUS
+.TP
+.B 0
+Inputs were read and output delivered successfully.
+Help and version requests also succeed.
+.TP
+.B 1
+An input could not be read or an output/pager I/O operation failed.
+Unreadable inputs do not prevent processing later inputs.
+.TP
+.B 2
+Invalid command-line usage or an unusable theme.
+.PP
+A pager startup failure alone does not change the status if direct output
+succeeds.
+The pager's exit status is ignored.
+A closed output pipe is handled quietly and preserves the status determined
+by input errors.
+.SH EXAMPLES
+Render a file or several files in order:
+.PP
+.RS
+.nf
+catmd README.md
+catmd intro.md chapter-*.md
+.fi
+.RE
+.PP
+Read standard input alone or between two files:
+.PP
+.RS
+.nf
+printf '# Hello\\n' | catmd
+catmd header.md \- footer.md < body.md
+.fi
+.RE
+.PP
+Render plain ASCII text at a fixed width without paging:
+.PP
+.RS
+.nf
+catmd \-\-color never \-\-ascii \-\-width 80 \-\-no\-pager README.md
+.fi
+.RE
+.PP
+Preserve styling through an explicitly invoked pager:
+.PP
+.RS
+.nf
+catmd \-\-color always README.md | less \-R
+.fi
+.RE
+.PP
+Choose pager arguments for automatic paging:
+.PP
+.RS
+.nf
+CATMD_PAGER='less \-S' catmd long.md
+.fi
+.RE
+.PP
+Use a theme path or a named default theme:
+.PP
+.RS
+.nf
+catmd \-\-theme ./theme.toml \-\-color\-depth 256 README.md
+CATMD_THEME=dark catmd README.md
+.fi
+.RE
+.SH SEE ALSO
+.BR cat (1),
+.BR less (1),
+.BR man (1)
