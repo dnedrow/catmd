@@ -302,6 +302,13 @@ jobs:
           pattern: artifacts-*
           path: Formula/
           merge-multiple: true
+      - name: Patch Homebrew formula for man page
+        run: |
+          ruby -pi -e '
+            if $_ =~ /^\s*install_binary_aliases!/
+              puts "    man1.install \"catmd.1\" if File.exist?(\"catmd.1\")"
+            end
+          ' Formula/catmd.rb
       # This is extra complex because you can make your Formula name not match your app name
       # so we need to find releases with a *.rb file, and publish with that filename.
       - name: Commit formula files
