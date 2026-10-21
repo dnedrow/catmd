@@ -149,7 +149,7 @@ dependencies = [
 
 [[package]]
 name = "catmd"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "anstyle",
  "anstyle-lossy",
