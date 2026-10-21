@@ -1,6 +1,6 @@
 [package]
 name = "catmd"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2024"
 authors = ["David Nedrow"]
 description = "cat for Markdown: render Markdown as styled text in the terminal"
