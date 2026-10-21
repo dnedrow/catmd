@@ -304,16 +304,11 @@ jobs:
           path: Formula/
           merge-multiple: true
 
-      - name: Patch Homebrew formula for man page
+      - name: Patch Homebrew formula
         run: |
           perl -0pi -e '
-          s/install_binary_aliases!/
-          man1.install "catmd.1" if File.exist?("catmd.1")\n\n    install_binary_aliases!/g;
-          
-          s/Dir\["\*"\] - doc_files/
-          Dir["*"] - doc_files - ["catmd.1"]/g;
+            s/bin\.install "catmd"/bin.install "catmd"\n    man1.install "catmd.1" if File.exist?("catmd.1")/;
           ' Formula/catmd.rb
-  
           echo "Patched formula:"
           grep -A5 -B5 "man1.install" Formula/catmd.rb
 
