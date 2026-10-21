@@ -295,6 +295,7 @@ jobs:
           persist-credentials: true
           repository: "dnedrow/homebrew-tap"
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
       # So we have access to the formula
       - name: Fetch homebrew formulae
         uses: actions/download-artifact@v8
@@ -302,13 +303,20 @@ jobs:
           pattern: artifacts-*
           path: Formula/
           merge-multiple: true
+
       - name: Patch Homebrew formula for man page
         run: |
-          ruby -pi -e '
-            if $_ =~ /^\s*install_binary_aliases!/
-              puts "    man1.install \"catmd.1\" if File.exist?(\"catmd.1\")"
-            end
+          perl -0pi -e '
+          s/install_binary_aliases!/
+          man1.install "catmd.1" if File.exist?("catmd.1")\n\n    install_binary_aliases!/g;
+          
+          s/Dir\["\*"\] - doc_files/
+          Dir["*"] - doc_files - ["catmd.1"]/g;
           ' Formula/catmd.rb
+  
+          echo "Patched formula:"
+          grep -A5 -B5 "man1.install" Formula/catmd.rb
+
       # This is extra complex because you can make your Formula name not match your app name
       # so we need to find releases with a *.rb file, and publish with that filename.
       - name: Commit formula files
