@@ -9,15 +9,15 @@ use std::time::{Duration, Instant};
 /// How long to wait for the terminal to answer before assuming it will not.
 pub const TIMEOUT: Duration = Duration::from_millis(250);
 
-/// A Kitty graphics query (answered only by terminals that support it),
-/// a cell-size report request, then primary device attributes, which every
-/// terminal answers and which therefore marks the end of the replies.
-const QUERY: &[u8] = b"\x1b_Gi=31,s=1,v=1,a=q,t=d,f=24;AAAA\x1b\\\x1b[16t\x1b[c";
+/// A cell-size report request, then primary device attributes, which every
+/// terminal answers and which therefore marks the end of the replies. No
+/// Kitty graphics query is sent: terminals without that protocol, such as the
+/// IntelliJ terminal, print its APC sequence as garbage.
+const QUERY: &[u8] = b"\x1b[16t\x1b[c";
 
 /// What the terminal reported.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct ProbeResult {
-    pub kitty: bool,
     pub sixel: bool,
     /// Cell `(width, height)` in pixels.
     pub cell: Option<(u32, u32)>,
@@ -60,12 +60,10 @@ fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 
 /// Interpret the bytes the terminal sent back.
 pub fn parse(reply: &[u8]) -> ProbeResult {
-    let kitty = find(reply, b"\x1b_Gi=31;OK").is_some();
     let sixel = find_da1(reply)
         .map(|params| params.split(|&b| b == b';').any(|p| p == b"4"))
         .unwrap_or(false);
     ProbeResult {
-        kitty,
         sixel,
         cell: parse_cell(reply),
     }
@@ -204,12 +202,11 @@ mod tests {
     }
 
     #[test]
-    fn parses_kitty_sixel_and_cell_size() {
-        let reply = b"\x1b_Gi=31;OK\x1b\\\x1b[6;34;17t\x1b[?62;4;22c";
+    fn parses_sixel_and_cell_size() {
+        let reply = b"\x1b[6;34;17t\x1b[?62;4;22c";
         assert_eq!(
             parse(reply),
             ProbeResult {
-                kitty: true,
                 sixel: true,
                 cell: Some((17, 34)),
             }
@@ -219,7 +216,7 @@ mod tests {
     #[test]
     fn da1_without_the_sixel_attribute() {
         let result = parse(b"\x1b[?62;14;22c");
-        assert!(!result.sixel && !result.kitty);
+        assert!(!result.sixel);
         assert_eq!(result.cell, None);
     }
 
@@ -231,7 +228,7 @@ mod tests {
         };
         let result = run(&mut io, Duration::from_secs(1)).unwrap();
         assert!(result.sixel);
-        assert!(io.sent.starts_with(b"\x1b_Gi=31"));
+        assert!(io.sent.starts_with(b"\x1b[16t"));
         assert!(io.sent.ends_with(b"\x1b[c"));
     }
 

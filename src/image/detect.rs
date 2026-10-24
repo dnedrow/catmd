@@ -37,11 +37,10 @@ pub fn capabilities(env: &Environment) -> Capabilities {
         .to_ascii_lowercase();
     let probe = env.probe.unwrap_or_default();
     Capabilities {
-        kitty: probe.kitty
-            || env
-                .kitty_window_id
-                .as_deref()
-                .is_some_and(|id| !id.is_empty())
+        kitty: env
+            .kitty_window_id
+            .as_deref()
+            .is_some_and(|id| !id.is_empty())
             || term.contains("kitty")
             || term.contains("ghostty")
             || KITTY_PROGRAMS.contains(&program.as_str()),

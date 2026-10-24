@@ -46,7 +46,12 @@ impl ImageBackend for Kitty {
         };
         let mut out = Vec::new();
         match action.write_transmit_to(&mut out, Verbosity::Silent) {
-            Ok(_) => Encoded::Graphics(String::from_utf8_lossy(&out).into_owned()),
+            Ok(_) => {
+                // kittage marks only the first chunk quiet, and the terminal
+                // answers on the last one, so silence every continuation too.
+                let text = String::from_utf8_lossy(&out).replace("\x1b_Gm=", "\x1b_Gq=2,m=");
+                Encoded::Graphics(text)
+            }
             Err(_) => Encoded::Graphics(String::new()),
         }
     }
@@ -80,5 +85,7 @@ mod tests {
         };
         assert!(out.matches("\x1b_G").count() > 1);
         assert!(out.contains("m=1"));
+        assert!(out.contains("\x1b_Gq=2,m=0;"), "{out:?}");
+        assert!(!out.contains("\x1b_Gm="), "{out:?}");
     }
 }
