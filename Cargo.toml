@@ -24,6 +24,9 @@ shell-words = "1.1"
 toml = { version = "1.1", default-features = false, features = ["std", "parse", "serde"] }
 anstyle-lossy = "1.1"
 two-face = { version = "0.5", default-features = false, features = ["syntect-fancy"] }
+kittage = "0.4"
+icy_sixel = "0.7"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
 
 [dev-dependencies]
 assert_cmd = "2.2"
@@ -33,3 +36,6 @@ predicates = "3.1"
 [profile.dist]
 inherits = "release"
 lto = "thin"
+
+[target."cfg(unix)".dependencies]
+libc = "0.2.191"

@@ -795,3 +795,160 @@ fn newly_exposed_roles_take_effect() {
     assert!(out.contains(&format!("{g}------+----{RESET}")), "{out:?}");
     assert!(!out.contains(DIM), "{out:?}");
 }
+
+mod images {
+    use std::path::{Path, PathBuf};
+
+    use catmd::image::{BackendKind, CellSize, ImageSettings};
+    use catmd::render::render_in;
+
+    use super::*;
+
+    fn fixture(name: &str, width: u32, height: u32) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("catmd-images-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join(name);
+        ::image::RgbaImage::from_pixel(width, height, ::image::Rgba([255, 0, 0, 255]))
+            .save(&path)
+            .unwrap();
+        path
+    }
+
+    fn with(backend: Option<BackendKind>, width: usize, color: bool) -> Settings {
+        Settings {
+            images: ImageSettings {
+                backend,
+                cell: CellSize::new(10, 20).unwrap(),
+            },
+            ..settings(width, color, Glyphs::Unicode)
+        }
+    }
+
+    fn at(md: &str, settings: &Settings, base: &Path) -> String {
+        render_in(md, settings, base)
+    }
+
+    #[test]
+    fn placeholder_box_shows_alt_source_size_and_notice() {
+        let path = fixture("box.png", 1920, 1080);
+        let base = path.parent().unwrap();
+        let out = at(
+            "![Architecture Diagram](box.png)",
+            &with(Some(BackendKind::Placeholder), 80, false),
+            base,
+        );
+        assert_eq!(
+            out,
+            "┌─ Image ───────────────────┐\n\
+             │ Architecture Diagram      │\n\
+             │ box.png                   │\n\
+             │ 1920×1080                 │\n\
+             │ Image display unsupported │\n\
+             └───────────────────────────┘\n"
+        );
+    }
+
+    #[test]
+    fn a_missing_file_degrades_to_the_placeholder() {
+        let out = at(
+            "![gone](nope.png)",
+            &with(Some(BackendKind::Kitty), 80, false),
+            Path::new("."),
+        );
+        assert!(out.contains("nope.png") && out.contains("Image display unsupported"));
+        assert!(!out.contains('\x1b'));
+    }
+
+    #[test]
+    fn no_backend_keeps_the_plain_label() {
+        let out = at("![alt](x.png)", &with(None, 80, false), Path::new("."));
+        assert_eq!(out, "[image: alt] (x.png)\n");
+    }
+
+    #[test]
+    fn mixed_paragraphs_keep_the_inline_label() {
+        let path = fixture("mixed.png", 10, 10);
+        let out = at(
+            "See ![alt](mixed.png) here",
+            &with(Some(BackendKind::Placeholder), 80, false),
+            path.parent().unwrap(),
+        );
+        assert_eq!(out, "See [image: alt] (mixed.png) here\n");
+    }
+
+    #[test]
+    fn half_blocks_fit_the_width_and_keep_the_aspect_ratio() {
+        let path = fixture("wide.png", 1000, 200);
+        let out = at(
+            "![](wide.png)",
+            &with(Some(BackendKind::HalfBlock), 40, true),
+            path.parent().unwrap(),
+        );
+        let lines: Vec<&str> = out.lines().collect();
+        // 40 columns * 10px = 400px wide, 80px tall = 4 cell rows.
+        assert_eq!(lines.len(), 4);
+        for line in lines {
+            assert_eq!(catmd::render::layout::strip_ansi(line).chars().count(), 40);
+        }
+    }
+
+    #[test]
+    fn small_images_keep_their_natural_size() {
+        let path = fixture("small.png", 30, 40);
+        let out = at(
+            "![](small.png)",
+            &with(Some(BackendKind::HalfBlock), 80, true),
+            path.parent().unwrap(),
+        );
+        let lines: Vec<&str> = out.lines().collect();
+        assert_eq!(lines.len(), 2);
+        assert_eq!(
+            catmd::render::layout::strip_ansi(lines[0]).chars().count(),
+            3
+        );
+    }
+
+    #[test]
+    fn kitty_images_reserve_their_rows_and_stay_inside_a_quote() {
+        let path = fixture("k.png", 100, 100);
+        let out = at(
+            "> ![](k.png)\n\nafter",
+            &with(Some(BackendKind::Kitty), 40, false),
+            path.parent().unwrap(),
+        );
+        let lines: Vec<&str> = out.lines().collect();
+        // 100x100px at 10x20 cells is 10 columns by 5 rows.
+        assert!(lines[0].starts_with("│ \x1b_G"), "{:?}", lines[0]);
+        assert!(lines[0].contains("C=1"));
+        assert_eq!(&lines[1..5], &["│"; 4]);
+        assert_eq!(lines[5], "");
+        assert_eq!(lines[6], "after");
+    }
+
+    #[test]
+    fn sixel_images_restore_the_cursor_to_the_first_row() {
+        let path = fixture("s.png", 100, 100);
+        let out = at(
+            "![](s.png)",
+            &with(Some(BackendKind::Sixel), 40, false),
+            path.parent().unwrap(),
+        );
+        assert!(
+            out.starts_with("\n\n\n\n\x1b[4A\x1b[1G\x1b7\x1bP"),
+            "{out:?}"
+        );
+        assert!(out.contains("\x1b\\\x1b8\n"));
+        assert_eq!(out.matches('\n').count(), 4 + 4 + 1);
+    }
+
+    #[test]
+    fn the_same_inputs_render_identically() {
+        let path = fixture("d.png", 64, 64);
+        let settings = with(Some(BackendKind::HalfBlock), 40, true);
+        let base = path.parent().unwrap();
+        assert_eq!(
+            at("![](d.png)", &settings, base),
+            at("![](d.png)", &settings, base)
+        );
+    }
+}

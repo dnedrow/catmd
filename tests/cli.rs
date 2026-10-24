@@ -24,6 +24,10 @@ fn catmd() -> Command {
         "CATMD_THEME",
         "XDG_CONFIG_HOME",
         "HOME",
+        "CATMD_IMAGES",
+        "KITTY_WINDOW_ID",
+        "TERM_PROGRAM",
+        "TMUX",
     ] {
         cmd.env_remove(var);
     }
@@ -1011,4 +1015,69 @@ fn color_depth_truecolor_overrides_a_plain_terminal() {
         .assert()
         .success()
         .stdout("\x1b[38;2;255;0;0mx\x1b[0m\n");
+}
+
+#[test]
+fn piped_images_stay_a_plain_label_without_graphics_escapes() {
+    catmd()
+        .env("KITTY_WINDOW_ID", "1")
+        .arg("--no-pager")
+        .write_stdin("![logo](logo.png)\n")
+        .assert()
+        .success()
+        .stdout("[image: logo] (logo.png)\n");
+}
+
+#[test]
+fn images_placeholder_flag_forces_the_box_even_when_piped() {
+    catmd()
+        .args(["--images", "placeholder", "--ascii"])
+        .write_stdin("![logo](missing.png)\n")
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("missing.png")
+                .and(predicate::str::contains("Image display unsupported")),
+        );
+}
+
+#[test]
+fn catmd_images_env_selects_the_mode_and_the_flag_wins() {
+    catmd()
+        .env("CATMD_IMAGES", "placeholder")
+        .write_stdin("![a](m.png)\n")
+        .assert()
+        .stdout(predicate::str::contains("Image display unsupported"));
+    catmd()
+        .env("CATMD_IMAGES", "placeholder")
+        .args(["--images", "none"])
+        .write_stdin("![a](m.png)\n")
+        .assert()
+        .stdout("[image: a] (m.png)\n");
+}
+
+#[test]
+fn invalid_images_value_is_a_usage_error() {
+    catmd()
+        .args(["--images", "bogus"])
+        .write_stdin("x")
+        .assert()
+        .failure()
+        .code(2);
+}
+
+#[test]
+fn image_paths_resolve_against_the_markdown_files_directory() {
+    let dir = std::env::temp_dir().join(format!("catmd-cli-img-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    image::RgbaImage::from_pixel(8, 8, image::Rgba([0, 0, 0, 255]))
+        .save(dir.join("p.png"))
+        .unwrap();
+    std::fs::write(dir.join("doc.md"), "![pic](p.png)\n").unwrap();
+    catmd()
+        .args(["--images", "placeholder"])
+        .arg(dir.join("doc.md"))
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("8×8"));
 }

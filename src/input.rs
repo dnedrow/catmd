@@ -77,7 +77,13 @@ pub fn render_all(
                 continue;
             }
         };
-        let rendered = crate::render(&markdown, settings);
+        let base = match source {
+            Source::File(path) => path
+                .parent()
+                .map_or_else(|| PathBuf::from("."), PathBuf::from),
+            Source::Stdin => PathBuf::from("."),
+        };
+        let rendered = crate::render::render_in(&markdown, settings, &base);
         if rendered.is_empty() {
             continue;
         }

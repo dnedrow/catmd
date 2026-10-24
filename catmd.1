@@ -11,7 +11,14 @@ reads Markdown files or standard input and writes a terminal rendering.
 It supports CommonMark and GitHub extensions including tables, strikethrough,
 task lists, autolinks, footnotes, and alerts.
 YAML front matter is hidden; HTML is shown literally.
-Links are shown as text plus URL and images as text placeholders.
+Links are shown as text plus URL.
+A paragraph containing only an image is drawn as an image block when
+.B \-\-images
+allows it; see
+.BR Images .
+Other images are shown as an
+.B [image: alt] (src)
+label.
 .PP
 Each
 .I FILE
@@ -157,6 +164,16 @@ regardless of locale.
 .B \-\-no\-pager
 Never start a pager.
 .TP
+.BI \-\-images " MODE"
+Select how images are shown:
+.BR auto " (default), " kitty ", " sixel ", " blocks ", " placeholder ", or " none .
+An explicit mode other than
+.B auto
+is used even when output is not a terminal.
+Defaults to
+.BR CATMD_IMAGES .
+Invalid values are usage errors.
+.TP
 .BR \-h ", " \-\-help
 Print help and exit.
 .TP
@@ -237,6 +254,15 @@ Default theme path or name when no nonempty
 value is supplied.
 Whitespace-only values are ignored.
 .TP
+.B CATMD_IMAGES
+Default for
+.B \-\-images
+when the option is not given.
+.TP
+.BR KITTY_WINDOW_ID ", " TERM ", " TERM_PROGRAM ", " TMUX
+Hints for image protocol detection; see
+.BR Images .
+.TP
 .BR XDG_CONFIG_HOME ", " HOME
 Base directory for named themes; see
 .BR FILES .
@@ -256,6 +282,38 @@ When unset or empty,
 is supplied to preserve colors, quit if output fits one screen, and leave
 output visible when quitting
 .BR less .
+.SH IMAGES
+Local PNG, JPEG, GIF, and WebP files are resolved relative to the Markdown
+file's directory (the current directory for standard input).
+Remote and
+.B data:
+sources are not fetched.
+An image wider than the available width, after quote and list indentation, is
+scaled down proportionally; smaller images keep their natural size.
+.PP
+In
+.B auto
+mode, output that is not a terminal keeps the plain label.
+On a terminal the first available backend is used: Kitty Graphics Protocol,
+SIXEL, Unicode half-block cells, then a text placeholder box.
+Support is detected from
+.BR KITTY_WINDOW_ID ,
+.BR TERM ,
+.BR TERM_PROGRAM ,
+and, on an interactive terminal, a short query answered by the terminal.
+Inside
+.B tmux
+graphics are not assumed.
+Without color, or with
+.BR \-\-ascii ,
+the placeholder box is used.
+.PP
+The placeholder box lists the alt text, the source, the pixel size when known,
+and a note that image display is unsupported.
+It is also shown when an image is missing, unreadable, remote, or undecodable.
+.PP
+Output containing Kitty or SIXEL graphics is written directly to the terminal
+instead of through a pager, which would corrupt it.
 .SH FILES
 .TP
 .I $XDG_CONFIG_HOME/catmd/themes/NAME.toml
