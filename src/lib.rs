@@ -7,6 +7,7 @@
 
 pub mod cli;
 pub mod env;
+pub mod image;
 pub mod input;
 pub mod licenses;
 pub mod pager;

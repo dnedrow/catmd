@@ -1,6 +1,7 @@
 //! Markdown AST to terminal text.
 
 pub mod highlight;
+mod image;
 pub mod inline;
 pub mod layout;
 pub mod table;
@@ -9,7 +10,11 @@ use anstyle::Style;
 use comrak::nodes::{ListType, Node, NodeAlert, NodeCodeBlock, NodeList, NodeValue};
 use comrak::{Arena, Options, parse_document};
 
+use std::path::{Path, PathBuf};
+
 use crate::Settings;
+use crate::image::ImageSettings;
+use crate::theme::color::ColorDepth;
 use crate::theme::{Glyphs, Theme};
 use layout::{Span, Writer};
 
@@ -21,6 +26,11 @@ const CODE_INDENT: &str = "    ";
 /// The result is empty for an empty document and otherwise ends with exactly
 /// one newline.
 pub fn render(markdown: &str, settings: &Settings) -> String {
+    render_in(markdown, settings, Path::new("."))
+}
+
+/// Like [`render`], resolving relative image paths against `base`.
+pub fn render_in(markdown: &str, settings: &Settings, base: &Path) -> String {
     let arena = Arena::new();
     let options = options();
     let root = parse_document(&arena, markdown, &options);
@@ -29,6 +39,9 @@ pub fn render(markdown: &str, settings: &Settings) -> String {
         glyphs: settings.glyphs,
         writer: Writer::new(settings.width, settings.depth),
         footnotes: 0,
+        images: settings.images,
+        depth: settings.depth,
+        base: base.to_path_buf(),
     };
     renderer.block(root);
     renderer.writer.finish()
@@ -54,6 +67,10 @@ struct Renderer<'t> {
     /// Footnote definitions rendered so far; comrak appends them to the
     /// document in order of first reference, so this is also their number.
     footnotes: usize,
+    images: ImageSettings,
+    depth: ColorDepth,
+    /// Directory that relative image paths are resolved against.
+    base: PathBuf,
 }
 
 impl Renderer<'_> {
@@ -73,6 +90,12 @@ impl Renderer<'_> {
             NodeValue::Document => self.blocks(node, true),
             NodeValue::FrontMatter(_) => {}
             NodeValue::Paragraph => {
+                if let Some(image) = image::sole_image(node)
+                    && let NodeValue::Image(link) = &image.data().value
+                    && self.image_block(image, link)
+                {
+                    return;
+                }
                 let spans = inline::render_inlines(node, self.theme, Style::new());
                 self.writer.wrap(&spans);
             }

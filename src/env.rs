@@ -8,6 +8,7 @@ use std::io::IsTerminal;
 use std::num::NonZeroUsize;
 
 use crate::cli::{Args, ColorMode, DepthArg};
+use crate::image::ImageSettings;
 use crate::pager::PagerCommand;
 use crate::theme::color::ColorDepth;
 use crate::theme::{Glyphs, Theme};
@@ -40,6 +41,16 @@ pub struct Environment {
     pub catmd_theme: Option<String>,
     pub xdg_config_home: Option<String>,
     pub home: Option<String>,
+    pub kitty_window_id: Option<String>,
+    pub term_program: Option<String>,
+    pub tmux: Option<String>,
+    pub catmd_images: Option<String>,
+    /// Whether standard input is attached to a terminal.
+    pub stdin_is_terminal: bool,
+    /// `(width, height)` in pixels of one terminal cell, when the kernel reports it.
+    pub cell_pixels: Option<(u32, u32)>,
+    /// Result of querying the terminal for graphics support, when it was queried.
+    pub probe: Option<crate::image::probe::ProbeResult>,
 }
 
 impl Environment {
@@ -66,8 +77,40 @@ impl Environment {
             catmd_theme: var("CATMD_THEME"),
             xdg_config_home: var("XDG_CONFIG_HOME"),
             home: var("HOME"),
+            kitty_window_id: var("KITTY_WINDOW_ID"),
+            term_program: var("TERM_PROGRAM"),
+            tmux: var("TMUX"),
+            catmd_images: var("CATMD_IMAGES"),
+            stdin_is_terminal: std::io::stdin().is_terminal(),
+            cell_pixels: cell_pixels(),
+            probe: None,
         }
     }
+}
+
+/// Pixel size of one terminal cell from `TIOCGWINSZ`, if the terminal fills it in.
+#[cfg(unix)]
+fn cell_pixels() -> Option<(u32, u32)> {
+    let mut size = std::mem::MaybeUninit::<libc::winsize>::zeroed();
+    // SAFETY: TIOCGWINSZ writes a `winsize` into the pointer it is given.
+    let result = unsafe { libc::ioctl(libc::STDOUT_FILENO, libc::TIOCGWINSZ, size.as_mut_ptr()) };
+    if result != 0 {
+        return None;
+    }
+    // SAFETY: the ioctl succeeded and initialized the struct.
+    let size = unsafe { size.assume_init() };
+    if size.ws_col == 0 || size.ws_row == 0 || size.ws_xpixel == 0 || size.ws_ypixel == 0 {
+        return None;
+    }
+    Some((
+        u32::from(size.ws_xpixel / size.ws_col),
+        u32::from(size.ws_ypixel / size.ws_row),
+    ))
+}
+
+#[cfg(not(unix))]
+fn cell_pixels() -> Option<(u32, u32)> {
+    None
 }
 
 /// Fully resolved output settings; nothing downstream re-detects the environment.
@@ -87,6 +130,8 @@ pub struct Settings {
     pub stdout_is_terminal: bool,
     /// Styles for every rendering role.
     pub theme: Theme,
+    /// Image backend and cell geometry.
+    pub images: ImageSettings,
 }
 
 impl Default for Settings {
@@ -99,17 +144,21 @@ impl Default for Settings {
             pager: None,
             stdout_is_terminal: false,
             theme: Theme::default(),
+            images: ImageSettings::default(),
         }
     }
 }
 
 /// Resolve [`Settings`] from arguments and an [`Environment`] snapshot.
 pub fn resolve(args: &Args, env: &Environment) -> Settings {
+    let depth = resolve_depth(args, env);
+    let glyphs = resolve_glyphs(args.ascii, env);
     Settings {
-        depth: resolve_depth(args, env),
+        images: crate::image::detect::resolve(args, env, depth.is_on(), glyphs),
+        depth,
         width: resolve_width(args.width, env),
         height: resolve_height(args.height, env),
-        glyphs: resolve_glyphs(args.ascii, env),
+        glyphs,
         pager: crate::pager::resolve_pager(args.no_pager, env),
         stdout_is_terminal: env.stdout_is_terminal,
         theme: Theme::default(),

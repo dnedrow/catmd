@@ -81,14 +81,21 @@ pub fn visual_rows(output: &str, width: usize) -> usize {
 
 /// Whether `output` should go through the pager: only when standard output is a
 /// terminal, paging is enabled, the height is known, and the output is taller
-/// than the terminal.
+/// than the terminal. Output carrying Kitty or SIXEL graphics is never paged,
+/// since external pagers corrupt or drop those sequences.
 pub fn should_page(settings: &Settings, output: &str) -> bool {
     let Some(height) = settings.height else {
         return false;
     };
     settings.stdout_is_terminal
+        && !has_graphics(output)
         && settings.pager.is_some()
         && visual_rows(output, settings.width) > height
+}
+
+/// Whether `output` contains a Kitty graphics (`ESC _ G`) or SIXEL (`ESC P`) sequence.
+fn has_graphics(output: &str) -> bool {
+    output.contains("\x1b_G") || output.contains("\x1bP")
 }
 
 /// Write `output` to standard output.
@@ -170,6 +177,14 @@ mod tests {
     #[test]
     fn short_output_streams() {
         assert!(!should_page(&tty_settings(Some(40)), &lines(10)));
+    }
+
+    #[test]
+    fn graphics_output_is_never_paged() {
+        for escape in ["\x1b_Ga=T;AAAA\x1b\\", "\x1bPq#0;2;0;0;0\x1b\\"] {
+            let output = format!("{escape}\n{}", lines(60));
+            assert!(!should_page(&tty_settings(Some(24)), &output));
+        }
     }
 
     #[test]

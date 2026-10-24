@@ -14,7 +14,10 @@ const EXIT_USAGE: u8 = 2;
 
 fn main() -> ExitCode {
     let args = Args::parse();
-    let env = Environment::capture();
+    let mut env = Environment::capture();
+    if catmd::image::detect::should_probe(&args, &env) {
+        env.probe = catmd::image::probe::probe_terminal();
+    }
     let mut settings = resolve(&args, &env);
     if let Some(source) = theme_file::select(args.theme.as_deref(), &env) {
         match theme_file::load(&source) {

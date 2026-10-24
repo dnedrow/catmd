@@ -42,6 +42,28 @@ pub struct Args {
     /// Never hand output to a pager.
     #[arg(long)]
     pub no_pager: bool,
+
+    /// How to show images (default: $CATMD_IMAGES, else detected from the terminal).
+    #[arg(long, value_enum, value_name = "MODE")]
+    pub images: Option<ImagesArg>,
+}
+
+/// The `--images` mode.
+#[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ImagesArg {
+    /// Pick the best backend the terminal supports: kitty, sixel, then blocks.
+    #[default]
+    Auto,
+    /// Kitty Graphics Protocol.
+    Kitty,
+    /// SIXEL graphics.
+    Sixel,
+    /// Unicode half-block cells.
+    Blocks,
+    /// A text box describing each image.
+    Placeholder,
+    /// The plain `[image: alt] (src)` label.
+    None,
 }
 
 /// The `--color` mode.
@@ -84,6 +106,7 @@ impl Default for Args {
             height: None,
             ascii: false,
             no_pager: false,
+            images: None,
         }
     }
 }

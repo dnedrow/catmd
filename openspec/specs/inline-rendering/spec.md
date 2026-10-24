@@ -75,7 +75,7 @@ The system SHALL render a link as only its destination, underlined, when the lin
 - **THEN** the output contains `user@example.com` and does not contain `mailto:`
 
 ### Requirement: Images render as a labeled placeholder
-The system SHALL render an image as `[image: <alt>]` followed by a space and the source in parentheses, or `[image]` when the alt text is empty.
+The system SHALL render an image as `[image: <alt>]` followed by a space and the source in parentheses, or `[image]` when the alt text is empty, whenever inline image rendering is not active (output is not a terminal, or color output is disabled). When inline image rendering is active, the `inline-images` capability governs instead.
 
 #### Scenario: Image with alt text
 - **WHEN** a paragraph contains `![Logo](logo.png)` and styling is off

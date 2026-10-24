@@ -133,6 +133,17 @@ impl Writer {
         self.emit(content, blank);
     }
 
+    /// Emit one line whose text after the prefixes is `cells`, which may hold
+    /// escape sequences and is neither measured nor trimmed.
+    pub fn raw_cells(&mut self, cells: &str) {
+        self.emit(&[Span::plain(cells)], cells.is_empty());
+    }
+
+    /// Columns taken by the prefix of the next emitted line.
+    pub fn indent_width(&self) -> usize {
+        self.prefix_width()
+    }
+
     /// Word-wrap `content` to the available width and emit the resulting lines.
     pub fn wrap(&mut self, content: &[Span]) {
         let available = self.available_width();
