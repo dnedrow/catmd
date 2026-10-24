@@ -308,6 +308,13 @@ Without color, or with
 .BR \-\-ascii ,
 the placeholder box is used.
 .PP
+Decoding, scaling, and encoding images can noticeably delay the initial
+display of a document, especially for large images or many images.
+Output appears only after every image has been processed.
+Use
+.B \-\-images none
+to skip image processing.
+.PP
 The placeholder box lists the alt text, the source, the pixel size when known,
 and a note that image display is unsupported.
 It is also shown when an image is missing, unreadable, remote, or undecodable.
